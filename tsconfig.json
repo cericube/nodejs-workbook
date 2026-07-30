@@ -1,0 +1,241 @@
+{
+  "compilerOptions": {
+    // ------------------------------------------------------------
+    // Language / Runtime
+    // ------------------------------------------------------------
+
+    // TypeScript가 출력 대상으로 가정할 JavaScript 문법 수준입니다.
+    // Node.js 18 이상에서는 ES2022가 안정적인 기준입니다.
+    //
+    // noEmit: true이므로 실제 JavaScript 파일을 출력하지는 않지만,
+    // 사용할 수 있는 문법과 일부 타입 추론 기준에 영향을 줍니다.
+    "target": "es2022",
+
+    // TypeScript가 기본으로 제공할 JavaScript 표준 라이브러리 타입입니다.
+    // Promise, Map, Set, Array.at, Object.hasOwn 등의 ES2022 API 타입을 포함합니다.
+    //
+    // DOM을 포함하지 않았으므로 window, document 같은 브라우저 전역 타입은
+    // 기본적으로 사용할 수 없습니다.
+    "lib": ["es2022"],
+
+    // import/export 구문을 특정 모듈 형식으로 강제 변환하지 않고
+    // 가능한 한 원본 형태로 유지합니다.
+    //
+    // tsx, esbuild, tsup 같은 외부 변환 도구가 실제 모듈 변환과
+    // 실행을 담당하는 환경에 적합합니다.
+    "module": "preserve",
+
+    // 번들러 및 tsx 계열의 모듈 해석 규칙을 사용합니다.
+    //
+    // 상대 경로 import에서 파일 확장자를 생략할 수 있으며,
+    // package.json의 exports/imports도 현대적인 방식으로 해석합니다.
+    //
+    // 순수 Node.js ESM 규칙을 엄격히 검사하려면
+    // module과 moduleResolution을 nodenext로 설정해야 합니다.
+    "moduleResolution": "bundler",
+
+    // 자동으로 포함할 전역 타입 패키지를 제한합니다.
+    //
+    // @types/node가 제공하는 process, Buffer, NodeJS 네임스페이스와
+    // node:fs, node:path 같은 Node.js 내장 모듈 타입을 활성화합니다.
+    //
+    // 테스트도 같은 tsconfig에서 검사하지만 Vitest API를 명시적으로
+    // import하므로 별도의 Vitest 전역 타입은 포함하지 않습니다.
+    "types": ["node"],
+
+    // ------------------------------------------------------------
+    // Path Aliases
+    // ------------------------------------------------------------
+
+    // 긴 상대 경로 대신 별칭 기반 import를 사용할 수 있게 합니다.
+    //
+    // 예:
+    // import { logger } from "@utils/logger";
+    //
+    // TypeScript 6에서는 baseUrl 대신 paths 대상 경로에
+    // ./src를 직접 포함하는 구성을 사용할 수 있습니다.
+    //
+    // 주의:
+    // paths는 TypeScript의 타입 검사 및 모듈 탐색을 위한 설정입니다.
+    // tsc가 import 문자열 자체를 상대 경로로 변환해 주지는 않습니다.
+    // 현재처럼 tsx로 실행하면 tsconfig paths를 해석할 수 있습니다.
+    "paths": {
+      // @app/server
+      // → ./src/app/server.ts
+      "@app/*": ["./src/app/*"],
+
+      // @config/env
+      // → ./src/config/env.ts
+      "@config/*": ["./src/config/*"],
+
+      // @utils/logger
+      // → ./src/utils/logger.ts
+      "@utils/*": ["./src/utils/*"],
+
+      // @services/user.service
+      // → ./src/services/user.service.ts
+      "@services/*": ["./src/services/*"]
+    },
+
+    // ------------------------------------------------------------
+    // Type Checking
+    // ------------------------------------------------------------
+
+    // TypeScript의 주요 엄격 검사 옵션을 한 번에 활성화합니다.
+    //
+    // 대표적으로 다음 검사가 포함됩니다.
+    // - strictNullChecks
+    // - noImplicitAny
+    // - strictFunctionTypes
+    // - strictPropertyInitialization
+    // - useUnknownInCatchVariables
+    "strict": true,
+
+    // 선택적 프로퍼티의 "미존재"와 명시적인 undefined 할당을 구분합니다.
+    //
+    // interface User {
+    //   nickname?: string;
+    // }
+    //
+    // 활성화 시 다음 코드는 기본적으로 허용되지 않습니다.
+    // const user: User = { nickname: undefined };
+    //
+    // 프로퍼티에 undefined 할당도 허용하려면 다음처럼 작성해야 합니다.
+    // nickname?: string | undefined;
+    "exactOptionalPropertyTypes": true,
+
+    // 배열 또는 인덱스 시그니처를 통한 접근 결과에
+    // undefined 가능성을 포함합니다.
+    //
+    // const users = ["kim"];
+    // const user = users[10];
+    // // string | undefined
+    //
+    // 존재하지 않는 인덱스나 키에 접근하는 런타임 오류를 줄일 수 있습니다.
+    "noUncheckedIndexedAccess": true,
+
+    // switch 문의 case에서 break, return, throw 없이
+    // 다음 case로 의도치 않게 이어지는 fallthrough를 검사합니다.
+    "noFallthroughCasesInSwitch": true,
+
+    // 반환값이 있는 함수에서 일부 코드 경로만 값을 반환하는 경우
+    // 컴파일 오류로 처리합니다.
+    //
+    // 조건문 분기 누락으로 undefined가 반환되는 문제를 방지할 수 있습니다.
+    "noImplicitReturns": true,
+
+    // 부모 클래스의 메서드나 프로퍼티를 재정의할 때
+    // override 키워드를 명시하도록 요구합니다.
+    //
+    // 부모 클래스의 API가 변경되었는데도 자식 클래스가
+    // 잘못된 재정의를 유지하는 문제를 예방할 수 있습니다.
+    "noImplicitOverride": true,
+
+    // ------------------------------------------------------------
+    // Module Safety & Interop
+    // ------------------------------------------------------------
+
+    // TypeScript가 import/export 구문을 임의로 제거하거나 변환하지 않고
+    // 작성한 형태를 최대한 그대로 유지합니다.
+    //
+    // 타입으로만 사용하는 import는 import type으로 작성해야 합니다.
+    //
+    // 예:
+    // import type { User } from "./user";
+    //
+    // module: preserve와 함께 사용하면 모듈 동작을 명확하게 유지할 수 있습니다.
+    "verbatimModuleSyntax": true,
+
+    // 각 파일이 다른 파일의 타입 정보를 이용한 변환 없이도
+    // 독립적으로 안전하게 변환될 수 있는지 검사합니다.
+    //
+    // tsx와 esbuild처럼 파일 단위 변환을 수행하는 도구와
+    // 함께 사용할 때 권장되는 옵션입니다.
+    "isolatedModules": true,
+
+    // 실행 목적의 side-effect import가 실제로 해석 가능한지 검사합니다.
+    //
+    // 예:
+    // import "./initialize";
+    //
+    // 오타가 있거나 존재하지 않는 파일을 side-effect import한 경우
+    // 이를 놓치지 않도록 도와줍니다.
+    "noUncheckedSideEffectImports": true,
+
+    // import 또는 export가 없는 파일도 항상 모듈로 취급합니다.
+    //
+    // 파일이 전역 스크립트로 간주되어 다른 파일의 전역 변수와
+    // 충돌하는 문제를 방지할 수 있습니다.
+    "moduleDetection": "force",
+
+    // import 경로에 .ts 확장자를 직접 작성해야 할 때 활성화합니다.
+    //
+    // 예:
+    // import { logger } from "./logger.ts";
+    //
+    // 현재 설정은 noEmit: true이므로 사용할 수 있습니다.
+    // 확장자를 생략하는 스타일이라면 활성화할 필요가 없습니다.
+    // "allowImportingTsExtensions": true,
+
+    // ------------------------------------------------------------
+    // Output & Build
+    // ------------------------------------------------------------
+
+    // TypeScript가 JavaScript, source map, declaration 파일을
+    // 생성하지 않도록 설정합니다.
+    //
+    // 이 프로젝트에서는 다음과 같이 역할을 분리합니다.
+    // - tsx: TypeScript 실행
+    // - tsc: 정적 타입 검사
+    //
+    // 타입 검사는 다음 명령으로 수행할 수 있습니다.
+    // tsc --noEmit
+    "noEmit": true,
+
+    // node_modules에 포함된 외부 라이브러리의 .d.ts 내부 검사를 생략합니다.
+    //
+    // 프로젝트 코드에서 해당 라이브러리 타입을 사용하는 부분은 검사하지만,
+    // 라이브러리 선언 파일 자체의 타입 오류는 건너뜁니다.
+    //
+    // 타입 검사 속도를 높이고 패키지 간 타입 충돌 영향을 줄일 수 있습니다.
+    "skipLibCheck": true,
+
+    // 이전 타입 검사 결과를 캐시하여
+    // 이후 tsc 실행 속도를 향상합니다.
+    //
+    // CI처럼 매번 깨끗한 환경에서 실행되는 경우보다
+    // 로컬 개발 환경에서 효과가 큽니다.
+    "incremental": true,
+
+    // incremental 타입 검사 캐시 파일의 저장 위치입니다.
+    //
+    // 소스 디렉터리나 프로젝트 루트에 캐시 파일이 노출되지 않도록
+    // node_modules 내부 캐시 디렉터리에 저장합니다.
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.tsbuildinfo"
+  },
+
+  // ------------------------------------------------------------
+  // Files
+  // ------------------------------------------------------------
+
+  // TypeScript 타입 검사 대상입니다.
+  //
+  // src 디렉터리 아래의 모든 .ts 파일을 포함합니다.
+  // .tsx 파일을 사용한다면 "src/**/*.tsx"도 추가해야 합니다.
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
+
+  // 타입 검사 대상에서 제외할 디렉터리입니다.
+  //
+  // include 범위가 src로 제한되어 있으므로 일부 항목은 중복이지만,
+  // 프로젝트 의도를 명시하고 향후 include 범위가 바뀔 때를 대비할 수 있습니다.
+  "exclude": [
+    // 설치된 외부 패키지
+    "node_modules",
+
+    // 빌드 결과물
+    "dist",
+
+    // 테스트 커버리지 결과물
+    "coverage"
+  ]
+}
