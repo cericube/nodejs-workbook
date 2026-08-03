@@ -231,10 +231,8 @@
   "exclude": [
     // 설치된 외부 패키지
     "node_modules",
-
     // 빌드 결과물
     "dist",
-
     // 테스트 커버리지 결과물
     "coverage"
   ]

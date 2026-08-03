@@ -60,8 +60,10 @@ let shuttingDown = false;
 // 프로그램이 종료될 때 데이터베이스 연결을 안전하게 정리하는 함수입니다.
 const shutdown = async (): Promise<void> => {
   // 이미 종료 처리가 시작되었다면 다시 실행하지 않습니다.
-  if (shuttingDown) return;
-
+  if (shuttingDown) {
+    console.log('이미 종료 처리가 진행 중입니다. 추가 종료 요청은 무시됩니다.');
+    return;
+  }
   // 종료 처리가 시작되었음을 기록합니다.
   shuttingDown = true;
 
@@ -69,6 +71,7 @@ const shutdown = async (): Promise<void> => {
     // Prisma가 사용 중인 데이터베이스 연결을 종료합니다.
     await prisma.$disconnect();
 
+    console.log('데이터베이스 연결이 안전하게 종료되었습니다.');
     // 정상적으로 연결을 종료했으므로 성공 코드 0으로 프로세스를 끝냅니다.
     process.exit(0);
   } catch (error) {

@@ -16,8 +16,6 @@ datasource db {
   provider = "postgresql"
 }
 
-
-
 model User {
   id          Int      @id @default(autoincrement())
   email       String   @unique
@@ -45,6 +43,8 @@ model Post {
 
   likes PostLike[]
 
+  // createdAt과 id를 함께 사용하는 복합 커서를 생성합니다.
+  @@unique([createdAt, id])
   @@index([authorId])
   @@map("posts")
 }
