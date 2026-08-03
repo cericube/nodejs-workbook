@@ -6,12 +6,13 @@ import { prisma } from '../shared/database';
  * Post.author는 단일 User를 가리키는 필수 관계입니다. is는 작성자가 조건을
  * 만족하는 글을 찾고, isNot은 작성자가 조건을 만족하지 않는 글을 찾습니다.
  */
-async function runToOneRelationFilters(emailDomain: string) {
+export async function runToOneRelationFilters(emailDomain: string) {
   console.log('--- [1] To-One 관계 필터 ---');
 
   const matchingPosts = await prisma.post.findMany({
     where: {
       author: {
+        // is 내부의 조건은 연결된 단일 User 레코드에 적용됩니다.
         is: {
           email: {
             endsWith: emailDomain,
@@ -35,6 +36,7 @@ async function runToOneRelationFilters(emailDomain: string) {
   const otherPosts = await prisma.post.findMany({
     where: {
       author: {
+        // isNot은 연결된 User가 아래 조건을 만족하는 Post를 제외합니다.
         isNot: {
           email: {
             endsWith: emailDomain,
@@ -59,12 +61,13 @@ async function runToOneRelationFilters(emailDomain: string) {
  * User.posts는 여러 Post를 갖는 목록 관계입니다. some은 하나 이상, none은
  * 하나도 없음, every는 모든 관계 레코드가 조건을 만족하는지 검사합니다.
  */
-async function runToManyRelationFilters() {
+export async function runToManyRelationFilters() {
   console.log('--- [2] To-Many 관계 필터 ---');
 
   const usersWithPublishedPost = await prisma.user.findMany({
     where: {
       posts: {
+        // 연결된 Post 중 공개 글이 하나라도 있는 User만 선택합니다.
         some: {
           published: true,
         },
@@ -75,6 +78,7 @@ async function runToManyRelationFilters() {
       displayName: true,
       _count: {
         select: {
+          // 전체 게시글 수가 아니라 published 조건을 만족하는 수만 계산합니다.
           posts: {
             where: {
               published: true,
@@ -106,6 +110,7 @@ async function runToManyRelationFilters() {
         every: {
           published: true,
         },
+        // some: {}를 함께 두어 Post가 없는 User가 포함되는 것을 막습니다.
         some: {},
       },
     },
@@ -134,12 +139,13 @@ async function runToManyRelationFilters() {
  * Post.likes에서 PostLike를 필터링해 특정 User가 좋아요한 게시글을 찾습니다.
  * where의 관계 필터와 select 내부의 관계 필터는 서로 독립적으로 동작합니다.
  */
-async function runManyToManyRelationFilters(userId: number) {
+export async function runManyToManyRelationFilters(userId: number) {
   console.log('--- [3] PostLike 관계 필터 ---');
 
   const likedPosts = await prisma.post.findMany({
     where: {
       likes: {
+        // PostLike.userId가 일치하는 관계가 하나 이상인 Post를 찾습니다.
         some: {
           userId,
         },
@@ -171,6 +177,7 @@ async function runManyToManyRelationFilters(userId: number) {
       id: true,
       title: true,
       _count: {
+        // likes가 없음을 확인하기 위한 관계 개수도 결과에 포함합니다.
         select: {
           likes: true,
         },
@@ -188,13 +195,14 @@ async function runManyToManyRelationFilters(userId: number) {
  * 최근 30일 이내의 공개 게시글 중 좋아요가 하나 이상이고, 작성자 이메일이
  * 지정한 도메인으로 끝나는 게시글을 조회합니다.
  */
-async function runComplexRelationQuery(emailDomain: string) {
+export async function runComplexRelationQuery(emailDomain: string) {
   console.log('--- [4] 복합 관계 조회 ---');
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
   const posts = await prisma.post.findMany({
     where: {
+      // 같은 where 객체의 네 조건은 모두 충족해야 합니다.
       published: true,
       createdAt: {
         gte: thirtyDaysAgo,
@@ -203,6 +211,7 @@ async function runComplexRelationQuery(emailDomain: string) {
         some: {},
       },
       author: {
+        // 필수 to-one 관계는 is를 생략하고 바로 User 조건을 작성할 수도 있습니다.
         email: {
           endsWith: emailDomain,
           mode: 'insensitive',
@@ -226,29 +235,10 @@ async function runComplexRelationQuery(emailDomain: string) {
       },
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    // 조건을 만족하는 최신 게시글 중 최대 10건만 반환합니다.
     take: 10,
   });
 
   console.dir(posts, { depth: null });
   return posts;
 }
-
-/**
- * 관계 필터 예제 실행 진입점
- */
-async function main(): Promise<void> {
-  await runComplexRelationQuery('@create-example.local');
-
-  // await runToOneRelationFilters('@create-example.local');
-  // await runToManyRelationFilters();
-  // await runManyToManyRelationFilters(1);
-}
-
-main()
-  .catch((error: unknown) => {
-    console.error('관계 필터 예제 실행 중 오류가 발생했습니다.', error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });

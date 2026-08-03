@@ -6,7 +6,7 @@ import { prisma } from '../shared/database';
  * update의 where에는 @id 또는 @unique 필드처럼 레코드 한 건을 식별할 수
  * 있는 조건이 필요합니다. User 또는 연결된 Post가 없으면 예외가 발생합니다.
  */
-async function runUpdate(userId: number, postId: number) {
+export async function runUpdate(userId: number, postId: number) {
   console.log('--- [1] User.update + posts.update 실행 ---');
 
   const user = await prisma.user.update({
@@ -60,7 +60,7 @@ async function runUpdate(userId: number, postId: number) {
  * 특정 User가 작성한 미공개 게시글을 모두 공개 상태로 변경합니다. 조건에
  * 맞는 게시글이 없어도 예외가 발생하지 않으며 수정된 건수만 반환합니다.
  */
-async function runUpdateMany(userId: number) {
+export async function runUpdateMany(userId: number) {
   console.log('--- [2] Post.updateMany 실행 ---');
 
   const result = await prisma.post.updateMany({
@@ -87,7 +87,7 @@ async function runUpdateMany(userId: number) {
  * updateMany와 달리 변경된 레코드 배열을 반환합니다. 수정 결과를 후속 처리에
  * 사용해야 할 때 유용하며, 반환량이 많아지지 않도록 조건과 select를 제한합니다.
  */
-async function runUpdateManyAndReturn(userId: number) {
+export async function runUpdateManyAndReturn(userId: number) {
   console.log('--- [3] Post.updateManyAndReturn 실행 ---');
 
   const posts = await prisma.post.updateManyAndReturn({
@@ -116,32 +116,3 @@ async function runUpdateManyAndReturn(userId: number) {
   console.dir(posts, { depth: null });
   return posts;
 }
-
-/**
- * update 예제 실행 진입점
- *
- * update 계열 함수는 기존 데이터를 변경하므로 실제 DB에 존재하는 User와
- * Post의 id를 확인한 뒤 필요한 호출만 주석 해제해 실행합니다.
- */
-async function main(): Promise<void> {
-  // Post는 반드시 userId에 해당하는 User가 작성한 게시글이어야 합니다.
-  await runUpdate(1, 1);
-
-  // 해당 User의 미공개 게시글을 모두 공개합니다.
-  await runUpdateMany(1);
-
-  // 해당 User의 모든 게시글 내용을 수정하고 변경된 목록을 반환합니다.
-  await runUpdateManyAndReturn(1);
-
-  console.log('실행할 update 예제의 주석을 해제해 주세요.');
-}
-
-main()
-  .catch((error: unknown) => {
-    console.error('update 예제 실행 중 오류가 발생했습니다.', error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    // shared/database는 별도 pool을 export하지 않으므로 Prisma만 종료합니다.
-    await prisma.$disconnect();
-  });

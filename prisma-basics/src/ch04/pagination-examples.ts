@@ -1,6 +1,7 @@
 import { prisma } from '../shared/database';
 
-type PostCursor = {
+export type PostCursor = {
+  // 복합 커서를 JSON이나 URL에 전달할 수 있는 형태로 표현합니다.
   id: number;
   createdAt: string;
 };
@@ -11,9 +12,10 @@ type PostCursor = {
  * 특정 페이지로 바로 이동하기 쉽지만, 페이지 번호가 커질수록 DB가 많은
  * 레코드를 건너뛰어야 하므로 큰 데이터셋에서는 비용이 증가할 수 있습니다.
  */
-async function getPostOffsetPage(page = 1, pageSize = 10) {
+export async function getPostOffsetPage(page = 1, pageSize = 10) {
   console.log('--- [1] 오프셋 페이지네이션 ---');
 
+  // 소수점은 버리고 최솟값을 1로 제한해 잘못된 페이지 입력을 보정합니다.
   const currentPage = Math.max(1, Math.trunc(page));
   const take = Math.max(1, Math.trunc(pageSize));
 
@@ -27,6 +29,7 @@ async function getPostOffsetPage(page = 1, pageSize = 10) {
     // 페이지 사이의 순서를 안정적으로 유지하도록 고유한 id를 보조 정렬합니다.
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     select: {
+      // 목록 화면에 필요한 필드만 반환해 전송량을 줄입니다.
       id: true,
       title: true,
       createdAt: true,
@@ -43,7 +46,7 @@ async function getPostOffsetPage(page = 1, pageSize = 10) {
  * schema.prisma의 @@unique([createdAt, id])로 생성된 createdAt_id 커서를
  * 사용합니다. take + 1건을 조회해 다음 페이지 존재 여부를 정확히 판단합니다.
  */
-async function getPostCursorPage(cursor?: PostCursor) {
+export async function getPostCursorPage(cursor?: PostCursor) {
   console.log('--- [2] 커서 페이지네이션 ---');
 
   const pageSize = 3;
@@ -57,6 +60,7 @@ async function getPostCursorPage(cursor?: PostCursor) {
     // cursor가 있을 때만 기준 레코드와 skip 옵션을 쿼리에 추가합니다.
     ...(cursor && {
       cursor: {
+        // 스키마의 복합 unique 필드는 두 값을 모두 제공해야 한 행을 식별합니다.
         createdAt_id: {
           createdAt: new Date(cursor.createdAt),
           id: cursor.id,
@@ -72,12 +76,14 @@ async function getPostCursorPage(cursor?: PostCursor) {
       title: true,
       createdAt: true,
       author: {
+        // 관계 필드도 중첩 select로 필요한 속성만 가져올 수 있습니다.
         select: {
           id: true,
           displayName: true,
         },
       },
       _count: {
+        // 실제 Like 목록 대신 관계 레코드의 개수만 조회합니다.
         select: {
           likes: true,
         },
@@ -85,8 +91,11 @@ async function getPostCursorPage(cursor?: PostCursor) {
     },
   });
 
+  // 요청 크기보다 한 건 더 왔다면 뒤에 이어지는 페이지가 존재합니다.
   const hasNextPage = posts.length > pageSize;
+  // 응답에는 미리 확인하기 위해 가져온 여분의 한 건을 제외합니다.
   const data = hasNextPage ? posts.slice(0, pageSize) : posts;
+  // 현재 페이지의 마지막 레코드가 다음 조회의 시작 커서가 됩니다.
   const lastPost = data.at(-1);
 
   // Date는 API 응답에서 직접 전송할 수 있도록 ISO 문자열로 직렬화합니다.
@@ -99,32 +108,9 @@ async function getPostCursorPage(cursor?: PostCursor) {
       : null;
 
   return {
+    // 클라이언트는 hasNextPage와 nextCursor로 다음 페이지 요청 여부를 결정합니다.
     data,
     nextCursor,
     hasNextPage,
   };
 }
-
-/**
- * 페이지네이션 예제 실행 진입점
- */
-async function main(): Promise<void> {
-  // await getPostOffsetPage(1, 10);
-
-  const firstPage = await getPostCursorPage();
-  console.dir(firstPage, { depth: null });
-
-  if (firstPage.nextCursor) {
-    const secondPage = await getPostCursorPage(firstPage.nextCursor);
-    console.dir(secondPage, { depth: null });
-  }
-}
-
-main()
-  .catch((error: unknown) => {
-    console.error('페이지네이션 예제 실행 중 오류가 발생했습니다.', error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });

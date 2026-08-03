@@ -8,7 +8,9 @@ const EXAMPLE_EMAIL_DOMAIN = '@create-example.local';
  *
  * select나 include가 없으면 User의 스칼라 필드가 모두 반환됩니다.
  */
-async function runCreate(): Promise<User> {
+export async function runCreate(
+  email = `cericube1${EXAMPLE_EMAIL_DOMAIN}`,
+): Promise<User> {
   console.log('--- [1] User.create 실행 ---');
 
   // prisma.user.create()
@@ -19,7 +21,7 @@ async function runCreate(): Promise<User> {
     // data에는 생성할 모델의 필드 값을 전달합니다.
     // id, createdAt은 스키마에 기본값이 있으므로 생략할 수 있습니다.
     data: {
-      email: `cericube1${EXAMPLE_EMAIL_DOMAIN}`,
+      email,
       displayName: 'cericube1',
     },
   });
@@ -34,7 +36,9 @@ async function runCreate(): Promise<User> {
  * 관계 데이터까지 함께 생성해야 할 때 사용하는 대표적인 nested write입니다.
  * include를 사용하면 생성된 User와 Post를 한 결과로 받을 수 있습니다.
  */
-async function runNestedCreate() {
+export async function runNestedCreate(
+  email = `cericube2${EXAMPLE_EMAIL_DOMAIN}`,
+) {
   console.log('--- [2] User.create + posts.create 실행 ---');
 
   // 최상위 create는 User 한 건을 생성합니다.
@@ -42,7 +46,7 @@ async function runNestedCreate() {
   // nested write 안에서 생성할 수 있습니다.
   const user = await prisma.user.create({
     data: {
-      email: `cericube2${EXAMPLE_EMAIL_DOMAIN}`,
+      email,
       displayName: 'cericube2',
       posts: {
         // posts.create 배열의 각 객체로 Post를 생성합니다.
@@ -78,7 +82,12 @@ async function runNestedCreate() {
  * createMany의 반환값은 { count }이지만 createManyAndReturn은 생성된
  * 레코드를 반환합니다. select로 필요한 필드만 받을 수 있습니다.
  */
-async function runCreateManyAndReturn() {
+export async function runCreateManyAndReturn(
+  emails: readonly [string, string] = [
+    `cericube3${EXAMPLE_EMAIL_DOMAIN}`,
+    `cericube4${EXAMPLE_EMAIL_DOMAIN}`,
+  ],
+) {
   console.log('--- [3] User.createManyAndReturn 실행 ---');
 
   // createManyAndReturn은 data 배열의 레코드를 한 번에 생성하고,
@@ -86,11 +95,11 @@ async function runCreateManyAndReturn() {
   const users = await prisma.user.createManyAndReturn({
     data: [
       {
-        email: `cericube3${EXAMPLE_EMAIL_DOMAIN}`,
+        email: emails[0],
         displayName: 'cericube3',
       },
       {
-        email: `cericube4${EXAMPLE_EMAIL_DOMAIN}`,
+        email: emails[1],
         displayName: 'cericube4',
       },
     ],
@@ -115,7 +124,7 @@ async function runCreateManyAndReturn() {
  * 외래 키인 authorId를 직접 입력하는 대신 relation 필드의 connect를
  * 사용하면 고유 조건으로 기존 레코드를 연결할 수 있습니다.
  */
-async function runCreateWithConnect(authorEmail: string) {
+export async function runCreateWithConnect(authorEmail: string) {
   console.log('--- [4] Post.create + author.connect 실행 ---');
 
   // Post 한 건을 생성하면서 기존 User를 작성자로 연결합니다.
@@ -149,7 +158,7 @@ async function runCreateWithConnect(authorEmail: string) {
  * createMany 데이터에는 nested relation을 사용할 수 없으므로 authorId를
  * 직접 전달합니다.
  */
-async function runCreateMany(authorId: number) {
+export async function runCreateMany(authorId: number) {
   console.log('--- [5] Post.createMany 실행 ---');
 
   // createMany는 data 배열에 있는 여러 Post를 벌크 생성합니다.
@@ -181,7 +190,7 @@ async function runCreateMany(authorId: number) {
  * PostLike는 User와 Post를 연결하는 모델입니다. 두 relation에 connect를
  * 사용해 기존 User와 Post 사이의 좋아요 레코드를 생성합니다.
  */
-async function runCreatePostLike(userId: number, postId: number) {
+export async function runCreatePostLike(userId: number, postId: number) {
   console.log('--- [6] PostLike.create 실행 ---');
 
   // 명시적 다대다 연결 모델인 PostLike 레코드를 한 건 생성합니다.
@@ -208,51 +217,3 @@ async function runCreatePostLike(userId: number, postId: number) {
   console.dir(postLike, { depth: null });
   return postLike;
 }
-
-/**
- * 이 파일에서 만든 데이터만 제거합니다.
- * User 삭제 시 관련 Post와 PostLike는 스키마의 onDelete: Cascade에 따라
- * 함께 삭제됩니다.
- */
-async function cleanUp(): Promise<void> {
-  // deleteMany는 where 조건에 맞는 User를 모두 삭제합니다.
-  // 예제 전용 이메일 도메인으로 범위를 제한해 다른 데이터는 보존합니다.
-  await prisma.user.deleteMany({
-    where: {
-      email: {
-        endsWith: EXAMPLE_EMAIL_DOMAIN,
-      },
-    },
-  });
-}
-
-async function main(): Promise<void> {
-  // 같은 예제를 반복 실행해도 email 중복이 발생하지 않도록 먼저 정리합니다.
-  await cleanUp();
-
-  // 앞 단계에서 생성된 id/email을 다음 create 예제에 전달합니다.
-  // 따라서 DB에 특정 id가 미리 존재한다고 가정하지 않습니다.
-  const user = await runCreate();
-  await runNestedCreate();
-
-  const createdUsers = await runCreateManyAndReturn();
-  const batchUser = createdUsers[0];
-
-  if (!batchUser) {
-    throw new Error('createManyAndReturn으로 생성된 User가 없습니다.');
-  }
-
-  const post = await runCreateWithConnect(batchUser.email);
-  await runCreateMany(batchUser.id);
-  await runCreatePostLike(user.id, post.id);
-}
-
-main()
-  .catch((error: unknown) => {
-    console.error('create 예제 실행 중 오류가 발생했습니다.', error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    // 성공 또는 실패 여부와 관계없이 Prisma의 DB 연결을 정리합니다.
-    await prisma.$disconnect();
-  });

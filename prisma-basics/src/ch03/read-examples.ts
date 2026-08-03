@@ -7,7 +7,7 @@ import { prisma } from '../shared/database';
  * User.email은 스키마에서 @unique로 선언되어 있으므로 단일 User를 찾는
  * 조건으로 사용할 수 있습니다. 일치하는 User가 없으면 null을 반환합니다.
  */
-async function runFindUnique(email: string): Promise<User | null> {
+export async function runFindUnique(email: string): Promise<User | null> {
   console.log('--- [1] User.findUnique 실행 ---');
 
   // findUnique의 where에는 @id, @unique 또는 복합 고유 키처럼
@@ -28,7 +28,7 @@ async function runFindUnique(email: string): Promise<User | null> {
  * findUnique와 달리 조회 결과가 없으면 Prisma가 예외를 발생시킵니다.
  * 이후 로직에서 null을 별도로 처리하지 않고 존재를 보장해야 할 때 유용합니다.
  */
-async function runFindUniqueOrThrow(postId: number) {
+export async function runFindUniqueOrThrow(postId: number) {
   console.log('--- [2] Post.findUniqueOrThrow 실행 ---');
 
   const post = await prisma.post.findUniqueOrThrow({
@@ -64,7 +64,7 @@ async function runFindUniqueOrThrow(postId: number) {
  * 고유하지 않은 조건에서 레코드 한 건만 필요할 때 사용합니다. 결과가 없으면
  * null을 반환하며, orderBy를 생략하면 어떤 레코드가 먼저 올지 보장되지 않습니다.
  */
-async function runFindFirst(userId: number) {
+export async function runFindFirst(userId: number) {
   console.log('--- [3] Post.findFirst 실행 ---');
 
   const post = await prisma.post.findFirst({
@@ -102,7 +102,7 @@ async function runFindFirst(userId: number) {
  * 제목에 검색어가 포함된 공개 게시글 중 가장 최근 게시글을 반환합니다.
  * 조건을 만족하는 게시글이 없으면 예외가 발생합니다.
  */
-async function runFindFirstOrThrow(keyword: string) {
+export async function runFindFirstOrThrow(keyword: string) {
   console.log('--- [4] Post.findFirstOrThrow 실행 ---');
 
   const post = await prisma.post.findFirstOrThrow({
@@ -130,7 +130,7 @@ async function runFindFirstOrThrow(keyword: string) {
  * findMany는 조건을 만족하는 레코드 배열을 반환하며 결과가 없으면 빈 배열을
  * 반환합니다. skip과 take를 함께 사용해 오프셋 페이지네이션을 구현합니다.
  */
-async function runFindMany(page = 1, pageSize = 10) {
+export async function runFindMany(page = 1, pageSize = 10) {
   console.log('--- [5] Post.findMany 실행 ---');
 
   // 잘못된 페이지 값으로 음수 OFFSET이나 LIMIT이 만들어지지 않게 보정합니다.
@@ -169,35 +169,3 @@ async function runFindMany(page = 1, pageSize = 10) {
   console.dir(posts, { depth: null });
   return posts;
 }
-
-/**
- * 조회 예제 실행 진입점
- *
- * 필요한 함수의 주석을 해제해 하나씩 실행할 수 있습니다. OrThrow 계열 함수는
- * 조건에 맞는 데이터가 없으면 예외가 발생하므로 실제 식별자를 전달해야 합니다.
- */
-async function main(): Promise<void> {
-  // create-examples.ts를 먼저 실행했다면 아래 이메일로 User를 조회할 수 있습니다.
-  await runFindUnique('cericube1@create-example.local');
-
-  // 실제 DB에 존재하는 Post id와 User id를 전달해야 합니다.
-  await runFindUniqueOrThrow(1);
-  await runFindFirst(1);
-
-  // 검색어가 포함된 공개 게시글이 없으면 예외가 발생합니다.
-  await runFindFirstOrThrow('create');
-
-  // 첫 번째 페이지에서 공개 게시글을 최대 10건 조회합니다.
-  await runFindMany(1, 10);
-}
-
-main()
-  .catch((error: unknown) => {
-    console.error('read 예제 실행 중 오류가 발생했습니다.', error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    // 성공 또는 실패 여부와 관계없이 Prisma의 DB 연결을 정리합니다.
-    // shared/database는 별도 pool을 export하지 않으므로 Prisma만 종료합니다.
-    await prisma.$disconnect();
-  });
