@@ -10,6 +10,9 @@ generator client {
 
   // Prisma Client를 생성할 경로를 지정합니다.
   output   = "../generated/prisma"
+
+  // relationLoadStrategy 옵션을 사용하기 위한 Preview 기능입니다.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {

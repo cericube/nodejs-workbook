@@ -2,13 +2,25 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import * as dotenv from 'dotenv';
 import { PrismaClient } from '../../generated/prisma/client';
 
-// 현재 파일 위치(import.meta.url)를 기준으로
-// 두 단계 위에 있는 .env 파일을 찾아 환경 변수를 불러옵니다.
-dotenv.config({ path: new URL('../../.env', import.meta.url) });
+import * as path from 'path';
 
-// NODE_ENV 값이 'development'이면 개발 환경으로 판단합니다.
-// 개발 환경에서는 쿼리 로그를 더 자세히 출력하고 Prisma Client를 재사용합니다.
-const isDev = process.env.NODE_ENV === 'development';
+// import.meta.dirname은 현재 ESM 모듈(database.ts)이 위치한 디렉터리입니다.
+// 이를 기준으로 프로젝트 루트의 .env 절대 경로를 만들어 환경 변수를 불러옵니다.
+// dotenv는 기본적으로 process.env에 이미 설정된 값을 덮어쓰지 않습니다.
+dotenv.config({
+  path: path.resolve(import.meta.dirname, '../../.env'),
+});
+
+// Vitest가 NODE_ENV를 'test'로 설정하더라도, 애플리케이션 환경을 나타내는
+// APP_ENV는 영향을 받지 않고 .env에 지정한 값을 사용합니다.
+
+// APP_ENV 값이 'development'이면 개발 환경으로 판단합니다.
+// 개발 환경에서는 Prisma Client를 전역 객체에 저장해 다시 사용합니다.
+const isDev = process.env.APP_ENV === 'development';
+
+// 실행 환경과 관계없이 PRISMA_QUERY_LOG가 'true'일 때 상세 쿼리 로그를 활성화합니다.
+// 테스트에서도 실행 환경 값을 변경하지 않고 SQL 실행 내용을 확인할 수 있습니다.
+const enableQueryLog = process.env.PRISMA_QUERY_LOG === 'true';
 
 // globalThis 객체에 prisma라는 값을 저장할 수 있도록
 // TypeScript에 전역 변수의 타입을 알려 줍니다.
@@ -38,9 +50,9 @@ function getPrismaClient(): PrismaClient {
   return new PrismaClient({
     adapter,
 
-    // 개발 환경에서는 실행된 SQL과 각종 정보를 자세히 출력합니다.
-    // 운영 환경에서는 오류 메시지만 출력합니다.
-    log: isDev ? ['query', 'info', 'warn', 'error'] : ['error'],
+    // 상세 로그가 활성화되면 실행된 SQL과 각종 정보를 출력합니다.
+    // 활성화하지 않으면 오류 메시지만 출력합니다.
+    log: enableQueryLog ? ['query', 'info', 'warn', 'error'] : ['error'],
   });
 }
 
