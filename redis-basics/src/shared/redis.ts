@@ -19,7 +19,11 @@ redis.on('error', (error) => {
   console.error('[Redis Error]', error);
 });
 
-// 연결되어 있지 않을 때만 Redis 서버에 연결합니다.
+/**
+ * Redis 연결이 닫혀 있을 때만 새 연결을 맺습니다.
+ *
+ * @returns 연결된 Redis Client입니다.
+ */
 export async function connectRedis() {
   if (!redis.isOpen) {
     await redis.connect();
@@ -28,7 +32,10 @@ export async function connectRedis() {
   return redis;
 }
 
-// 연결이 열려 있으면 quit()을 호출하여 안전하게 연결을 종료합니다.
+/**
+ * 열려 있는 Redis 연결에 QUIT 명령을 보내 정상적으로 종료합니다.
+ * 이미 연결이 닫혀 있으면 아무 작업도 하지 않습니다.
+ */
 export async function disconnectRedis() {
   if (redis.isOpen) {
     await redis.quit();

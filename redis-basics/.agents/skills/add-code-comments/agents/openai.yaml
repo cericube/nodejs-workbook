@@ -1,0 +1,4 @@
+interface:
+  display_name: "코드 설명 주석 추가"
+  short_description: "함수와 주요 코드 사용법을 이해하기 쉽게 주석으로 설명합니다"
+  default_prompt: "$add-code-comments를 사용해 이 코드에 함수 목적과 주요 API 사용법을 설명하는 한국어 주석을 추가해 주세요."

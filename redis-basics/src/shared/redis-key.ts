@@ -11,6 +11,7 @@
  * - stream:*  : Redis Stream 실습입니다.
  * - channel:* : Redis Pub/Sub 실습입니다.
  */
+// as const로 객체와 하위 속성을 읽기 전용 리터럴 타입으로 유지합니다.
 export const RedisKey = {
   cache: {
     user: (userId: number) => `cache:user:${userId}`, // 사용자 단건 조회 캐시입니다.

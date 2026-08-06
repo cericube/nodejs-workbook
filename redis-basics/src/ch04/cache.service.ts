@@ -1,4 +1,4 @@
-import { redis } from '../shared/redis.js';
+import { redis } from '../shared/redis';
 
 /**
  * Redis String 기반 JSON 캐시를 다루는 공통 Service입니다.
@@ -25,6 +25,7 @@ export class CacheService {
     }
 
     try {
+      // 제네릭 T는 호출부의 기대 타입을 표현하며 런타임 구조를 검증하지는 않습니다.
       return JSON.parse(cached) as T;
     } catch {
       // JSON 형식이 잘못된 캐시는 삭제하고 캐시가 없는 것으로 처리합니다.
@@ -49,6 +50,7 @@ export class CacheService {
     const serializedValue = JSON.stringify(value);
 
     // EX 옵션은 만료 시간을 초 단위로 설정합니다.
+    // SET과 만료 시간 설정을 한 명령으로 실행해 TTL 없는 캐시가 남지 않게 합니다.
     await redis.set(key, serializedValue, {
       EX: ttlSeconds,
     });
