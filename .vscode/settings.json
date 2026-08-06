@@ -51,7 +51,7 @@
   // VS Code 내장 TypeScript 대신 node_modules에 설치된
   // 프로젝트 버전의 TypeScript SDK 경로를 지정합니다.
   // ===============================================================
-  "typescript.tsdk": "node_modules/typescript/lib",
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
 
   // ===============================================================
   // 6. 탐색기에서 불필요한 디렉터리 숨기기
@@ -103,6 +103,5 @@
   // TypeScript 또는 JavaScript 파일을 이동하거나 이름을 변경했을 때
   // 해당 파일을 참조하는 import 경로를 자동으로 업데이트합니다.
   // ===============================================================
-  "typescript.updateImportsOnFileMove.enabled": "always",
-  "javascript.updateImportsOnFileMove.enabled": "always"
+  "js/ts.updateImportsOnFileMove.enabled": "always"
 }

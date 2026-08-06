@@ -1,32 +1,19 @@
 {
   "name": "nodejs-workbook",
   "version": "1.0.0",
-  "description": "",
   "private": true,
-  "engines": {
-    "node": "^20.19.0 || ^22.13.0 || >=24"
-  },
-  "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:run",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "workspaces": [
+    "prisma-basics",
+    "redis-basics"
+  ],
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@eslint/json": "^2.0.1",
-    "@types/node": "^26.1.2",
+    "@types/node": "^22",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
@@ -36,5 +23,8 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
     "vitest": "^4.1.10"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2"
   }
 }

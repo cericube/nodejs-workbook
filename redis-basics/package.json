@@ -1,0 +1,19 @@
+{
+  "name": "redis-basics",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "prisma": "^7.9.1"
+  },
+  "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.9.1",
+    "better-sqlite3": "^13.0.3",
+    "redis": "^6.2.0"
+  }
+}

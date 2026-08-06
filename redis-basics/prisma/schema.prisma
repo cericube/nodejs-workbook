@@ -1,0 +1,87 @@
+// Prisma Client 생성 설정입니다.
+// Prisma 7부터 provider로 "prisma-client"를 사용합니다.
+// Prisma 7에서는 output 경로를 반드시 지정해야 합니다.
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+
+// 사용자 정보 모델입니다.
+// Redis String은 사용자 조회 캐싱에 사용합니다.
+// Redis Hash는 사용자 프로필, 세션, 사용자 설정에 사용합니다.
+// Redis Sorted Set은 사용자 포인트 랭킹 실습에 사용합니다.
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String
+  point     Int      @default(0)
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 사용자가 작성한 게시글 목록입니다.
+  posts Post[]
+
+  // 사용자의 주문 목록입니다.
+  orders Order[]
+}
+
+// 게시글 모델입니다.
+// Redis String은 조회수 카운터에 사용합니다.
+// Redis List는 최근 본 게시글에 사용합니다.
+// Redis Set은 좋아요 사용자 목록에 사용합니다.
+// Redis Sorted Set은 인기 게시글 랭킹 실습에 사용합니다.
+model Post {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  authorId  Int
+  status    String   @default("DRAFT")
+  viewCount Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 게시글 작성자와의 관계를 설정합니다.
+  author User @relation(fields: [authorId], references: [id])
+}
+
+// 상품 모델입니다.
+// Redis Hash를 상품 재고 상태 캐싱 실습에 사용합니다.
+model Product {
+  id        Int      @id @default(autoincrement())
+  name      String
+  stock     Int      @default(0)
+  status    String   @default("ON_SALE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 주문 모델입니다.
+// Redis Stream을 주문 생성 이벤트 실습에 사용합니다.
+model Order {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  status     String   @default("CREATED")
+  totalPrice Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // 주문한 사용자와의 관계를 설정합니다.
+  user User @relation(fields: [userId], references: [id])
+}
+
+// 감사 로그 모델입니다.
+// Redis Stream을 감사 로그 이벤트 실습에 사용합니다.
+// 데이터베이스 저장 방식과 Redis Stream 저장 방식을 비교할 때 사용합니다.
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  action    String
+  target    String
+  message   String
+  createdAt DateTime @default(now())
+}
