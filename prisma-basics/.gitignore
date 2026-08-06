@@ -4,6 +4,3 @@ node_modules
 
 # generated 폴더는 ESLint 검사에서 제외하는 것이 일반적
 /generated/prisma
-./agents
-./claude
-./windsurf
