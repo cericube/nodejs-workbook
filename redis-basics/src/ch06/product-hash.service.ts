@@ -1,6 +1,8 @@
 // src/ch06/product-hash.service.ts
 
 import { prisma } from '../shared/prisma.js';
+import { WatchError } from 'redis';
+
 import { redis } from '../shared/redis.js';
 import { RedisKey } from '../shared/redis-key.js';
 import type { Prisma } from '../generated/prisma/client';
@@ -121,6 +123,9 @@ function parseProductStockHash(hash: Record<string, string>): ProductStockOutput
 }
 
 export class ProductHashService {
+  // WATCH 충돌이 계속될 때 요청이 무한히 반복되지 않도록 재시도 횟수를 제한합니다.
+  private readonly reservationTransactionMaxRetries = 10;
+
   /** 재고 값이 0 이상의 정수인지 검증합니다. */
   private validateStock(stock: number, fieldName: 'stock' | 'reservedStock'): void {
     if (!Number.isInteger(stock) || stock < 0) {
@@ -210,21 +215,21 @@ export class ProductHashService {
     // 예: hash:product-stock:1
     const key = RedisKey.hash.productStock(product.productId);
 
-    // 상품 재고 캐시의 필드 값을 저장하거나 갱신합니다.
-    // 여러 필드를 함께 저장하고 새로 추가된 필드 수를 반환하며, 기존 필드는 값을 덮어씁니다.
-    await redis.hSet(key, {
-      productId: String(product.productId),
-      name: product.name,
-      stock: String(product.stock),
-      reservedStock: String(product.reservedStock),
-      availableStock: String(product.availableStock),
-      status: product.status,
-      updatedAt: product.updatedAt,
-    });
-
-    // 상품 재고 캐시이 일정 시간이 지나면 자동으로 정리되도록 설정합니다.
-    // 만료 시간을 설정하면 1을, 상품 재고 캐시가 없으면 0을 반환합니다.
-    await redis.expire(key, ttlSeconds);
+    // HSET과 EXPIRE를 Transaction으로 묶어 다른 명령이 두 명령 사이에 끼어들지 못하게 합니다.
+    // 따라서 Hash만 저장되고 TTL은 빠져 무기한 남는 불완전한 캐시 상태를 방지합니다.
+    await redis
+      .multi()
+      .hSet(key, {
+        productId: String(product.productId),
+        name: product.name,
+        stock: String(product.stock),
+        reservedStock: String(product.reservedStock),
+        availableStock: String(product.availableStock),
+        status: product.status,
+        updatedAt: product.updatedAt,
+      })
+      .expire(key, ttlSeconds)
+      .exec();
   }
 
   /**
@@ -283,28 +288,13 @@ export class ProductHashService {
    * 실제 주문 확정 전 임시 예약 수량을 Redis Hash에서 관리합니다.
    * 이 메서드는 DB 재고를 직접 바꾸지 않고 Redis Hash의 예약 상태만 갱신합니다.
    *
-   * 참고:
-   * 실무에서는 초과 예약 검증과 동시성 제어가 필요하지만, 여기서는 Redis Hash 흐름을 이해하기 위해 단순하게 구성합니다.
+   * WATCH로 재고 Hash의 변경을 감시하고 MULTI/EXEC으로 갱신하여 동시 요청의 갱신 손실을 방지합니다.
+   * 다른 요청이 먼저 Hash를 변경하면 최신 값을 다시 읽어 계산합니다.
    */
   async increaseReservedStock(productId: number, quantity: number): Promise<ProductStockOutput> {
     this.validateQuantity(quantity);
 
-    const current = await this.getProductStock(productId);
-
-    const nextReservedStock = current.reservedStock + quantity;
-    const nextAvailableStock = current.stock - nextReservedStock;
-
-    const updated: ProductStockOutput = {
-      ...current,
-      reservedStock: nextReservedStock,
-      availableStock: nextAvailableStock,
-      updatedAt: new Date().toISOString(),
-    };
-
-    // 예약 재고는 Redis Hash에만 반영합니다.
-    await this.saveProductStockToHash(updated);
-
-    return updated;
+    return this.updateReservedStockWithTransaction(productId, quantity, 'increase');
   }
 
   /**
@@ -318,26 +308,114 @@ export class ProductHashService {
    *
    * 실습 포인트:
    * 주문 취소나 예약 만료 상황을 가정해 Redis Hash에 저장된 예약 수량을 줄입니다.
+   * WATCH와 MULTI/EXEC을 함께 사용해 조회와 갱신 사이에 값이 바뀌면 최신 값으로 다시 시도합니다.
    */
   async decreaseReservedStock(productId: number, quantity: number): Promise<ProductStockOutput> {
     this.validateQuantity(quantity);
 
-    const current = await this.getProductStock(productId);
+    return this.updateReservedStockWithTransaction(productId, quantity, 'decrease');
+  }
 
-    const nextReservedStock = Math.max(current.reservedStock - quantity, 0);
-    const nextAvailableStock = current.stock - nextReservedStock;
+  /**
+   * 예약 재고를 낙관적 잠금으로 증감합니다.
+   *
+   * 처리 순서:
+   * 1. 상품 재고 Hash가 없으면 DB 값으로 캐시를 생성합니다.
+   * 2. 전용 Redis 연결에서 재고 Hash를 WATCH합니다.
+   * 3. 현재 예약 재고를 읽고 증가 또는 감소 결과를 계산합니다.
+   * 4. HSET과 EXPIRE를 MULTI/EXEC으로 함께 실행합니다.
+   * 5. 감시 중 다른 요청이 Hash를 바꿨다면 최신 값을 읽어 다시 계산합니다.
+   *
+   * WATCH는 연결 단위로 동작하므로 공유 Client와 분리한 전용 연결을 사용합니다.
+   * 감시 이후 Hash가 변경되면 EXEC이 WatchError를 던지고, 최신 값을 다시 읽어 재시도합니다.
+   */
+  private async updateReservedStockWithTransaction(
+    productId: number,
+    quantity: number,
+    operation: 'increase' | 'decrease',
+  ): Promise<ProductStockOutput> {
+    const key = RedisKey.hash.productStock(productId);
 
-    const updated: ProductStockOutput = {
-      ...current,
-      reservedStock: nextReservedStock,
-      availableStock: nextAvailableStock,
-      updatedAt: new Date().toISOString(),
-    };
+    // 1. WATCH로 감시할 대상이 항상 완전한 Hash가 되도록 보장합니다.
+    // 캐시가 없다면 getProductStock이 DB에서 상품을 조회하여 Hash를 생성합니다.
+    await this.getProductStock(productId);
 
-    // 예약 취소 결과를 Redis Hash에 반영합니다.
-    await this.saveProductStockToHash(updated);
+    // 2. WATCH 상태가 다른 요청의 Redis 명령과 섞이지 않도록 전용 연결을 만듭니다.
+    // WATCH는 명령을 실행한 연결에만 유지되므로 공유 redis Client를 사용하면 안 됩니다.
+    const transactionClient = redis.duplicate();
+    transactionClient.on('error', (error) => {
+      console.error('[Redis Transaction Error]', error);
+    });
+    await transactionClient.connect();
 
-    return updated;
+    try {
+      // 동시에 같은 상품이 자주 변경되더라도 무한 반복하지 않고 정해진 횟수까지만 시도합니다.
+      for (let attempt = 1; attempt <= this.reservationTransactionMaxRetries; attempt += 1) {
+        // 3. 이 시점의 key 상태를 감시합니다.
+        // 이후 EXEC 전까지 다른 요청이 key를 변경하면 현재 Transaction은 실패합니다.
+        await transactionClient.watch(key);
+
+        // WATCH 이후의 값을 읽어야 이 값을 기준으로 계산한 결과를 안전하게 검증할 수 있습니다.
+        const hash = await transactionClient.hGetAll(key);
+        const current = parseProductStockHash(hash);
+
+        // 감시 직후 캐시가 만료·삭제됐거나 손상됐다면 현재 감시를 끝내고 캐시를 복구합니다.
+        // 복구된 값은 다음 반복에서 다시 WATCH한 뒤 읽습니다.
+        if (!current) {
+          await transactionClient.unwatch();
+          await this.getProductStock(productId);
+          continue;
+        }
+
+        // 4. 감시한 현재 값을 기준으로 다음 예약 재고를 계산합니다.
+        // 감소 결과에는 하한 0을 적용하여 예약 재고가 음수가 되지 않도록 합니다.
+        const nextReservedStock =
+          operation === 'increase'
+            ? current.reservedStock + quantity
+            : Math.max(current.reservedStock - quantity, 0);
+        const updated: ProductStockOutput = {
+          ...current,
+          reservedStock: nextReservedStock,
+          availableStock: current.stock - nextReservedStock,
+          updatedAt: new Date().toISOString(),
+        };
+
+        try {
+          // 5. WATCH 이후 값이 그대로일 때만 두 명령이 실행됩니다.
+          // MULTI/EXEC은 Hash 갱신과 TTL 설정 사이에 다른 명령이 끼어들지 못하게 합니다.
+          await transactionClient
+            .multi()
+            .hSet(key, {
+              productId: String(updated.productId),
+              name: updated.name,
+              stock: String(updated.stock),
+              reservedStock: String(updated.reservedStock),
+              availableStock: String(updated.availableStock),
+              status: updated.status,
+              updatedAt: updated.updatedAt,
+            })
+            .expire(key, 300)
+            .exec();
+
+          // EXEC이 성공했으므로 Redis에 실제 저장된 값을 호출자에게 반환합니다.
+          return updated;
+        } catch (error) {
+          // 다른 요청이 WATCH한 key를 먼저 수정한 경우입니다.
+          // 이전 계산 결과를 버리고 반복문의 처음으로 돌아가 최신 값을 다시 읽습니다.
+          if (error instanceof WatchError) {
+            continue;
+          }
+
+          throw error;
+        }
+      }
+    } finally {
+      // 성공, 일반 오류, 재시도 초과 여부와 관계없이 전용 연결을 반드시 닫습니다.
+      await transactionClient.close();
+    }
+
+    // 충돌이 재시도 제한까지 계속되면 호출자가 상황을 처리할 수 있도록 오류를 반환합니다.
+    throw new Error('Failed to update reserved stock due to concurrent modifications');
   }
 
   /**

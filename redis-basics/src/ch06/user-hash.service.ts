@@ -150,21 +150,21 @@ export class UserHashService {
     // 예: hash:user-profile:1
     const key = RedisKey.hash.userProfile(user.id);
 
-    // 사용자 프로필 캐시의 필드 값을 저장하거나 갱신합니다.
-    // 여러 필드를 함께 저장하고 새로 추가된 필드 수를 반환하며, 기존 필드는 값을 덮어씁니다.
-    await redis.hSet(key, {
-      id: String(user.id),
-      email: user.email,
-      name: user.name,
-      point: String(user.point),
-      status: user.status,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    });
-
-    // 사용자 프로필 캐시이 일정 시간이 지나면 자동으로 정리되도록 설정합니다.
-    // 만료 시간을 설정하면 1을, 사용자 프로필 캐시가 없으면 0을 반환합니다.
-    await redis.expire(key, ttlSeconds);
+    // HSET과 EXPIRE를 Transaction으로 묶어 다른 명령이 두 명령 사이에 끼어들지 못하게 합니다.
+    // 따라서 Hash만 저장되고 TTL은 빠져 무기한 남는 불완전한 캐시 상태를 방지합니다.
+    await redis
+      .multi()
+      .hSet(key, {
+        id: String(user.id),
+        email: user.email,
+        name: user.name,
+        point: String(user.point),
+        status: user.status,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      })
+      .expire(key, ttlSeconds)
+      .exec();
   }
 
   /**

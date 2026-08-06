@@ -60,6 +60,19 @@ describe('ProductHashService', () => {
     expect(decreased).toMatchObject({ reservedStock: 0, availableStock: 10 });
   });
 
+  it('동시 예약 요청의 갱신을 잃지 않는다', async () => {
+    const product = await service.createProduct({ name: '동시성 테스트 상품', stock: 10 });
+
+    await Promise.all(
+      Array.from({ length: 5 }, () => service.increaseReservedStock(product.productId, 1)),
+    );
+
+    await expect(service.getProductStockFromHash(product.productId)).resolves.toMatchObject({
+      reservedStock: 5,
+      availableStock: 5,
+    });
+  });
+
   it('0 이하이거나 정수가 아닌 예약 수량을 거부한다', async () => {
     const product = await service.createProduct({ name: '충전기', stock: 10 });
 
