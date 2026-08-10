@@ -16,6 +16,7 @@ describe('NotificationStreamService', () => {
   });
 
   it('알림 이벤트를 타입이 보존된 worker 작업으로 읽는다', async () => {
+    // Stream의 모든 값은 문자열이므로 userId가 다시 숫자로 변환되는지까지 검증합니다.
     const messageId = await service.addNotificationEvent({
       userId: 1,
       type: 'post.liked',
@@ -68,6 +69,7 @@ describe('NotificationStreamService', () => {
     const [job] = await service.readNotificationJobs('notification-worker-1');
     expect(job).toBeDefined();
 
+    // Consumer Group의 PEL에서 해당 메시지 ID만 제거합니다.
     await service.ackNotificationJob(job!.id);
 
     await expect(service.getPendingSummary()).resolves.toMatchObject({ pending: 0 });

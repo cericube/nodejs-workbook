@@ -21,6 +21,7 @@ describe('OrderStreamService', () => {
   });
 
   it('주문을 DB에 생성하고 order.created 이벤트를 기록한다', async () => {
+    // 하나의 서비스 호출이 영속 데이터와 후속 처리용 이벤트를 모두 생성하는지 확인합니다.
     const order = await service.createOrder({ userId, totalPrice: 25_000 });
 
     const events = await service.getOrderEvents();
@@ -65,6 +66,7 @@ describe('OrderStreamService', () => {
     await service.changeOrderStatus(order.id, 'PAID');
     await service.changeOrderStatus(order.id, 'SHIPPED');
 
+    // 최종 DB 상태와 상태 전이별 이벤트 이력이 같은 순서로 남아야 합니다.
     const updatedOrder = await prisma.order.findUniqueOrThrow({ where: { id: order.id } });
     const events = await service.getOrderEvents();
     expect(updatedOrder.status).toBe('SHIPPED');

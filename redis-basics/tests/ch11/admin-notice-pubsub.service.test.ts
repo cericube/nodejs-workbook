@@ -1,12 +1,17 @@
+// tests/ch11/admin-notice-pubsub.service.test.ts
+
 import { describe, expect, it, vi } from 'vitest';
+
 import { AdminNoticePubSubService } from '../../src/ch11/admin-notice-pubsub.service.js';
 import { redis } from '../../src/shared/redis.js';
 import { RedisKey } from '../../src/shared/redis-key.js';
 
+/** 관리자 공지의 실시간 발행, 메시지 검증과 구독 해제를 확인합니다. */
 describe('AdminNoticePubSubService', () => {
   const service = new AdminNoticePubSubService();
 
   it('현재 구독자에게 관리자 공지를 전달한다', async () => {
+    // Pub/Sub 콜백을 Promise로 감싸 테스트가 실제 메시지 수신까지 기다리게 합니다.
     let resolveMessage!: (value: unknown) => void;
     const received = new Promise((resolve) => {
       resolveMessage = resolve;
@@ -28,11 +33,13 @@ describe('AdminNoticePubSubService', () => {
         title: '점검 안내',
       });
     } finally {
+      // assertion 실패 여부와 관계없이 전용 subscriber 연결을 정리합니다.
       await stop();
     }
   });
 
   it('형식이 잘못된 메시지는 콜백에 전달하지 않는다', async () => {
+    // 서비스가 오류를 기록할 때 resolve하여 비동기 메시지 처리 완료 시점을 동기화합니다.
     let resolveLogged!: () => void;
     const logged = new Promise<void>((resolve) => {
       resolveLogged = resolve;
@@ -54,6 +61,7 @@ describe('AdminNoticePubSubService', () => {
         expect.any(TypeError),
       );
     } finally {
+      // spy를 먼저 복원해 구독 종료 중 발생할 수 있는 로그가 가려지지 않게 합니다.
       errorSpy.mockRestore();
       await stop();
     }
@@ -62,6 +70,7 @@ describe('AdminNoticePubSubService', () => {
   it('반환된 종료 함수는 여러 번 호출해도 안전하다', async () => {
     const stop = await service.subscribeAdminNotice(vi.fn());
 
+    // stop은 멱등적이어야 하며 구독 해제 뒤 PUBLISH의 수신자 수는 0입니다.
     await stop();
     await expect(stop()).resolves.toBeUndefined();
     await expect(

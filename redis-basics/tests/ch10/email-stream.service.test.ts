@@ -16,6 +16,7 @@ describe('EmailStreamService', () => {
   });
 
   it('이메일 작업을 추가하고 문자열 필드를 worker 작업으로 변환한다', async () => {
+    // Redis Stream에 문자열로 저장된 retryCount가 숫자로 역직렬화되는지도 확인합니다.
     const messageId = await service.addEmailJob({
       to: 'user@example.com',
       type: 'password-reset',
@@ -35,6 +36,7 @@ describe('EmailStreamService', () => {
   });
 
   it('업무별 보조 메서드로 환영 및 주문 완료 작업을 생성한다', async () => {
+    // 편의 메서드가 공통 Stream 스키마에 맞는 type과 본문을 만드는지 검증합니다.
     await service.addWelcomeEmailJob('welcome@example.com', 'Redis');
     await service.addOrderCompletedEmailJob('order@example.com', 100);
 
@@ -51,6 +53,7 @@ describe('EmailStreamService', () => {
     expect(job).toBeDefined();
     await expect(service.getPendingSummary()).resolves.toMatchObject({ pending: 1 });
 
+    // 전달만 받은 메시지는 PEL에 남고, 명시적으로 ACK해야 완료 처리됩니다.
     await service.ackEmailJob(job!.id);
 
     await expect(service.getPendingSummary()).resolves.toMatchObject({ pending: 0 });

@@ -17,6 +17,7 @@ describe('AuditLogStreamService', () => {
   });
 
   it('감사 로그 이벤트를 worker 작업으로 읽는다', async () => {
+    // XADD가 반환한 Stream ID까지 worker DTO에 보존되는지 함께 확인합니다.
     const messageId = await service.addAuditLogEvent({
       action: 'USER_LOGIN',
       target: 'user:1',
@@ -38,6 +39,7 @@ describe('AuditLogStreamService', () => {
   });
 
   it('actorId가 없는 이벤트를 null로 변환한다', async () => {
+    // Redis Hash에는 null을 직접 저장할 수 없어 빈 문자열로 기록한 값을 다시 null로 복원합니다.
     await service.addAuditLogEvent({
       action: 'SYSTEM_START',
       target: 'application',
@@ -76,6 +78,7 @@ describe('AuditLogStreamService', () => {
     await service.addAuditLogEvent({ action: 'FIRST', target: 'one', message: '첫 번째' });
     await service.addAuditLogEvent({ action: 'SECOND', target: 'two', message: '두 번째' });
 
+    // XREVRANGE 기반 조회가 추가 순서의 역순으로 결과를 만드는지 검증합니다.
     const events = await service.getRecentAuditLogEvents(2);
 
     expect(events.map((event) => event.action)).toEqual(['SECOND', 'FIRST']);
