@@ -8,13 +8,15 @@
   },
   "workspaces": [
     "prisma-basics",
-    "redis-basics"
+    "redis-basics",
+    "vitest-basics"
   ],
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@eslint/json": "^2.0.1",
     "@types/node": "^22",
     "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/ui": "^4.1.10",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.8.0",
