@@ -9,7 +9,8 @@
   "workspaces": [
     "prisma-basics",
     "redis-basics",
-    "vitest-basics"
+    "vitest-basics",
+    "fastify-basics"
   ],
   "devDependencies": {
     "@eslint/js": "^10.0.1",
