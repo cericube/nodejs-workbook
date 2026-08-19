@@ -1,0 +1,4 @@
+{"level":30,"time":1787143161886,"pid":33207,"hostname":"KIMKYUNGHO","msg":"Server listening at http://127.0.0.1:3000"}
+{"level":30,"time":1787143161887,"pid":33207,"hostname":"KIMKYUNGHO","msg":"Server running on http://localhost:3000"}
+{"level":30,"time":1787143177777,"pid":33207,"hostname":"KIMKYUNGHO","reqId":"req-1","req":{"method":"GET","url":"/users/1","host":"127.0.0.1:3000","remoteAddress":"127.0.0.1","remotePort":42604},"msg":"incoming request"}
+{"level":30,"time":1787143177786,"pid":33207,"hostname":"KIMKYUNGHO","reqId":"req-1","res":{"statusCode":200},"responseTime":8.614892000332475,"msg":"request completed"}
