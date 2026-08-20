@@ -3,7 +3,7 @@
 // Prisma 7에서는 output 경로를 반드시 지정해야 합니다.
 generator client {
   provider = "prisma-client"
-  output   = "../generated/prisma"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
