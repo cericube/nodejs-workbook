@@ -22,10 +22,10 @@ export enum ErrorCode {
   TOKEN_EXPIRED = 'TOKEN_EXPIRED',
   TOKEN_REVOKED = 'TOKEN_REVOKED',
 
-  // // =========================
-  // // USER
-  // // =========================
-  // USER_NOT_FOUND = 'USER_NOT_FOUND',
+  // =========================
+  // USER
+  // =========================
+  USER_NOT_FOUND = 'USER_NOT_FOUND',
   // EMAIL_ALREADY_EXISTS = 'EMAIL_ALREADY_EXISTS',
 
   // // =========================

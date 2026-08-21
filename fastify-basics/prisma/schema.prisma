@@ -7,64 +7,96 @@ generator client {
 }
 
 datasource db {
+  // 연결할 데이터베이스 종류입니다. 실제 연결 URL은 prisma.config.ts에서 설정합니다.
   provider = "sqlite"
 }
 
+// 사용자의 현재 계정 상태를 나타냅니다.
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  WITHDRAWN
+}
 
+// 서비스 사용자 정보를 저장합니다.
 model User {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  displayName  String?  @map("display_name")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  // 자동으로 증가하는 정수형 기본 키입니다.
+  id           Int        @id @default(autoincrement())
+  // 로그인에 사용하므로 중복 이메일을 허용하지 않습니다.
+  email        String     @unique
+  // 비밀번호 원문 대신 해시값을 저장합니다.
+  passwordHash String     @map("password_hash")
+  // 표시 이름은 선택 입력값입니다.
+  displayName  String?    @map("display_name")
+  // 새 계정은 기본적으로 활성 상태로 생성됩니다.
+  status       UserStatus @default(ACTIVE)
+  // 탈퇴하지 않은 사용자는 null이며, 탈퇴 시 처리 시각을 기록합니다.
+  withdrawnAt  DateTime?  @map("withdrawn_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
 
+  // 사용자가 작성한 게시글, 누른 좋아요, 로그인 세션의 역방향 관계입니다.
   posts    Post[]
   likes    PostLike[]
   sessions Session[]
 
+  // 계정 상태별 사용자 조회를 빠르게 하기 위한 인덱스입니다.
+  @@index([status])
+  // 데이터베이스에서는 users 테이블에 매핑합니다.
   @@map("users")
 }
 
+// 로그인 상태를 유지하기 위한 세션을 저장합니다.
 model Session {
   id        String   @id @default(cuid())
+  // 탈취 위험을 줄이기 위해 세션 토큰 자체가 아닌 해시값을 저장합니다.
   tokenHash String   @unique @map("token_hash")
   expiresAt DateTime @map("expires_at")
   createdAt DateTime @default(now()) @map("created_at")
 
+  // 세션 소유자를 가리키며, 사용자가 삭제되면 세션도 함께 삭제됩니다.
   userId Int  @map("user_id")
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // 사용자별 세션 조회와 만료 세션 조회를 빠르게 하기 위한 인덱스입니다.
   @@index([userId])
   @@index([expiresAt])
   @@map("sessions")
 }
 
+// 사용자가 작성한 게시글을 저장합니다.
 model Post {
   id        Int      @id @default(autoincrement())
   title     String
+  // 본문 없이 제목만 있는 게시글도 허용합니다.
   content   String?
+  // 새 게시글은 기본적으로 비공개 상태입니다.
   published Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // 작성자를 가리키며, 사용자가 삭제되면 작성한 게시글도 함께 삭제됩니다.
   authorId Int  @map("author_id")
   author   User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
+  // 이 게시글에 연결된 좋아요 목록입니다.
   likes PostLike[]
 
   @@index([authorId])
   @@map("posts")
 }
 
+// 사용자와 게시글의 다대다 좋아요 관계를 나타내는 연결 모델입니다.
 model PostLike {
   userId    Int      @map("user_id")
   postId    Int      @map("post_id")
   createdAt DateTime @default(now()) @map("created_at")
 
+  // 사용자나 게시글이 삭제되면 관련 좋아요도 함께 삭제됩니다.
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
+  // 사용자 한 명이 같은 게시글에 좋아요를 한 번만 누를 수 있도록 복합 기본 키를 사용합니다.
   @@id([userId, postId])
   @@index([postId])
   @@map("post_likes")

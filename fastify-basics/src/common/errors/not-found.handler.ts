@@ -4,6 +4,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { ErrorCode } from './error.codes';
+import type { ErrorResponse } from './error.schema';
 
 /**
  * Fastify가 요청에 맞는 라우트를 찾지 못했을 때 호출됩니다.
@@ -33,5 +34,5 @@ export function notFoundHandler(request: FastifyRequest, reply: FastifyReply) {
     code: ErrorCode.ROUTE_NOT_FOUND,
     // 사용자나 개발자가 읽을 수 있는 오류 설명
     message: '요청한 API를 찾을 수 없습니다.',
-  });
+  } satisfies ErrorResponse);
 }

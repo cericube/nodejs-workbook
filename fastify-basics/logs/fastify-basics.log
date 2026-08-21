@@ -1,0 +1,5 @@
+{"level":30,"time":1787290583550,"pid":97621,"hostname":"KIMKYUNGHO","msg":"Server listening at http://127.0.0.1:3000"}
+{"level":30,"time":1787290583550,"pid":97621,"hostname":"KIMKYUNGHO","msg":"Server listening at http://127.0.0.1:3000"}
+{"level":30,"time":1787290589557,"pid":97621,"hostname":"KIMKYUNGHO","msg":"Received SIGINT. Shutting down gracefully..."}
+{"level":30,"time":1787290589560,"pid":97621,"hostname":"KIMKYUNGHO","msg":"Closing Prisma connection..."}
+{"level":30,"time":1787290589562,"pid":97621,"hostname":"KIMKYUNGHO","msg":"Server closed gracefully"}

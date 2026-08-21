@@ -2,9 +2,14 @@
 
 import Fastify from 'fastify';
 
+// named export를 가져오는 문법
 import { env } from './config/env';
 import { errorHandler } from './common/errors/error.handler';
 import { notFoundHandler } from './common/errors/not-found.handler';
+import { routes } from './route';
+
+// default export여서 import할 때는 중괄호 없이 가져와야 합니다.
+import prismaPlugin from './plugins/prisma.plugin';
 
 // 개발 환경: 설정된 로그 레벨 이상의 메시지만 보기 좋게 출력합니다.
 const developmentLoggerOptions = {
@@ -81,6 +86,13 @@ export function createApp() {
 
   // 요청 URL과 일치하는 라우트가 없을 때 일관된 형식의 404 응답을 반환합니다.
   app.setNotFoundHandler(notFoundHandler);
+
+  // Prisma를 사용하는 라우트보다 먼저 등록합니다.
+  app.register(prismaPlugin);
+
+  // 실제 비즈니스 API 엔드포인트 등록
+  // prefix를 통해 API versioning 또는 gateway routing 대응 가능
+  app.register(routes, { prefix: '/api' }); // → /api/users, /api/posts ...
 
   return app;
 }

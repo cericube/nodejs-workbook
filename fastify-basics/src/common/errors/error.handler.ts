@@ -5,13 +5,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { Prisma } from '../../generated/prisma/client';
 import { ErrorCode } from './error.codes';
 import { BusinessError } from './business.error';
-
-// 클라이언트에 전달하는 공통 오류 응답 형식입니다.
-interface ErrorResponse {
-  success: false;
-  code: ErrorCode;
-  message: string;
-}
+import type { ErrorResponse } from './error.schema';
 
 // Fastify가 요청 스키마 검증에 실패했을 때 제공하는 주요 속성입니다.
 interface FastifyValidationError extends Error {
