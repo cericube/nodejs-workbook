@@ -18,6 +18,12 @@ enum UserStatus {
   WITHDRAWN
 }
 
+// 사용자가 서비스에서 행사할 수 있는 권한 범위를 나타냅니다.
+enum UserRole {
+  USER
+  ADMIN
+}
+
 // 서비스 사용자 정보를 저장합니다.
 model User {
   // 자동으로 증가하는 정수형 기본 키입니다.
@@ -30,6 +36,8 @@ model User {
   displayName  String?    @map("display_name")
   // 새 계정은 기본적으로 활성 상태로 생성됩니다.
   status       UserStatus @default(ACTIVE)
+  // 회원가입으로 생성되는 일반 사용자는 관리자 권한을 갖지 않습니다.
+  role         UserRole   @default(USER)
   // 탈퇴하지 않은 사용자는 null이며, 탈퇴 시 처리 시각을 기록합니다.
   withdrawnAt  DateTime?  @map("withdrawn_at")
   createdAt    DateTime   @default(now()) @map("created_at")
@@ -40,8 +48,9 @@ model User {
   likes    PostLike[]
   sessions Session[]
 
-  // 계정 상태별 사용자 조회를 빠르게 하기 위한 인덱스입니다.
+  // 계정 상태와 역할별 사용자 조회를 빠르게 하기 위한 인덱스입니다.
   @@index([status])
+  @@index([role])
   // 데이터베이스에서는 users 테이블에 매핑합니다.
   @@map("users")
 }
@@ -79,11 +88,33 @@ model Post {
   authorId Int  @map("author_id")
   author   User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  // 이 게시글에 연결된 좋아요 목록입니다.
-  likes PostLike[]
+  // 이 게시글에 연결된 좋아요와 첨부파일 목록입니다.
+  likes       PostLike[]
+  attachments PostAttachment[]
 
   @@index([authorId])
   @@map("posts")
+}
+
+// 게시글에 첨부한 파일의 저장 위치와 메타데이터를 저장합니다.
+model PostAttachment {
+  id           Int      @id @default(autoincrement())
+  // 사용자에게 표시할 업로드 당시의 원본 파일명입니다.
+  originalName String   @map("original_name")
+  // 실제 파일을 찾을 수 있는 로컬 상대 경로나 객체 스토리지 키입니다.
+  storageKey   String   @unique @map("storage_key")
+  // 다운로드 응답과 파일 형식 검증에 사용할 MIME 타입입니다.
+  mimeType     String   @map("mime_type")
+  // 업로드 제한과 응답 표시에 사용할 파일 크기이며 단위는 byte입니다.
+  size         Int
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // 첨부 대상 게시글이 삭제되면 파일 메타데이터도 함께 삭제됩니다.
+  postId Int  @map("post_id")
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("post_attachments")
 }
 
 // 사용자와 게시글의 다대다 좋아요 관계를 나타내는 연결 모델입니다.

@@ -2,14 +2,15 @@
 
 import Fastify from 'fastify';
 
-// named export를 가져오는 문법
+// 이름 있는 내보내기(named export)는 중괄호를 사용해 가져옵니다.
 import { env } from './config/env';
 import { errorHandler } from './common/errors/error.handler';
 import { notFoundHandler } from './common/errors/not-found.handler';
 import { routes } from './route';
 
-// default export여서 import할 때는 중괄호 없이 가져와야 합니다.
+// 기본 내보내기(default export)는 중괄호 없이 가져옵니다.
 import prismaPlugin from './plugins/prisma.plugin';
+import authenticationPlugin from './plugins/authentication.plugin';
 
 // 개발 환경: 설정된 로그 레벨 이상의 메시지만 보기 좋게 출력합니다.
 const developmentLoggerOptions = {
@@ -53,7 +54,7 @@ export function createApp() {
     bodyLimit: 1024 * 1024,
 
     // 연결된 소켓에서 10초 동안 데이터 송수신이 없으면 타임아웃 처리합니다.
-    // requestTimeout 만 사용해도 됨.
+    // 요청 처리 시간 제한은 아래 requestTimeout에서 별도로 설정합니다.
     connectionTimeout: 10_000,
 
     // 응답을 완료한 뒤 Keep-Alive 연결에서 다음 요청 데이터를 최대 5초간 기다립니다.
@@ -90,8 +91,12 @@ export function createApp() {
   // Prisma를 사용하는 라우트보다 먼저 등록합니다.
   app.register(prismaPlugin);
 
-  // 실제 비즈니스 API 엔드포인트 등록
-  // prefix를 통해 API versioning 또는 gateway routing 대응 가능
+  // 이후 등록되는 인증·사용자 라우트에서 쿠키, JWT, 요청 횟수 제한 기능을 사용합니다.
+  // Fastify 플러그인은 등록 순서와 범위가 중요하므로 반드시 routes보다 먼저 등록합니다.
+  app.register(authenticationPlugin);
+
+  // 실제 비즈니스 API 엔드포인트를 등록합니다.
+  // prefix를 지정하면 API 버전이나 게이트웨이 경로 체계에 맞출 수 있습니다.
   app.register(routes, { prefix: '/api' }); // → /api/users, /api/posts ...
 
   return app;

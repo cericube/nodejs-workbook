@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     // describe, it, expect 등을 import 없이 전역으로 사용합니다.
-    globals: true,
+    // globals: true, 의도적으로 주석 처리하였음
 
     // 테스트를 Node.js 런타임에서 실행합니다.
     environment: 'node',
