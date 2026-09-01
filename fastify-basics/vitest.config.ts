@@ -8,6 +8,9 @@ export default defineConfig({
     // 테스트를 Node.js 런타임에서 실행합니다.
     environment: 'node',
 
+    // 테스트 파일들이 같은 SQLite DB를 공유하고 매 테스트 후 테이블을 비우므로 파일을 순차 실행합니다.
+    fileParallelism: false,
+
     // V8 엔진을 사용하여 코드 커버리지를 수집합니다.
     coverage: {
       provider: 'v8',
